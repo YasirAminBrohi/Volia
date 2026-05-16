@@ -4,6 +4,14 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
+  console.log('1. Handler reached');
+  console.log('ENV CHECK:', {
+    hasToken: !!process.env.RAILWAY_API_TOKEN,
+    hasServiceId: !!process.env.RAILWAY_SERVICE_ID,
+    hasEnvId: !!process.env.RAILWAY_ENVIRONMENT_ID,
+    hasProjectId: !!process.env.RAILWAY_PROJECT_ID,
+  });
+
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   
   const { cookies } = req.body;
@@ -18,6 +26,8 @@ export default async function handler(req, res) {
   }
 
   try {
+    console.log('2. Body received:', !!cookies);
+
     // Step 1: Update COOKIES_JSON variable on Railway
     const mutation = `
       mutation {
@@ -40,7 +50,10 @@ export default async function handler(req, res) {
       body: JSON.stringify({ query: mutation })
     });
     
+    console.log('3. Railway response status:', upsertRes.status);
     const upsertData = await upsertRes.json();
+    console.log('4. Railway response data:', JSON.stringify(upsertData));
+    
     if (upsertData.errors) {
       throw new Error(upsertData.errors[0].message || 'Failed to update cookies variable');
     }
@@ -71,7 +84,8 @@ export default async function handler(req, res) {
 
     res.status(200).json({ success: true, message: 'Cookies updated. Cobalt is restarting...' });
   } catch (err) {
-    console.error('API update error:', err);
+    console.log('ERROR:', err.message);
+    console.error('API update error stack:', err);
     res.status(500).json({ error: err.message });
   }
 }
