@@ -96,7 +96,7 @@ export default function SettingsPanel() {
               type="url"
               value={settings.url}
               onChange={e => setSettings({ ...settings, url: e.target.value })}
-              placeholder={import.meta.env.VITE_COBALT_API || "https://cobalt-xyz.up.railway.app"}
+              placeholder={import.meta.env.VITE_COBALT_API || "https://cobalt-production-5c76.up.railway.app"}
               style={{
                 width: '100%',
                 padding: '12px',

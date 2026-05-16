@@ -14,7 +14,7 @@ export function getCobaltSettings() {
   } catch {
     // ignore
   }
-  return { url: import.meta.env.VITE_COBALT_API || 'https://cobalt-xyz.up.railway.app', apiKey: '' };
+  return { url: import.meta.env.VITE_COBALT_API || 'https://cobalt-production-5c76.up.railway.app', apiKey: '' };
 }
 
 /**
@@ -80,22 +80,11 @@ export async function downloadWithCobalt(url, options = {}) {
     filenameStyle: 'pretty',
   };
 
-  const settings = getCobaltSettings();
-  const defaultApi = import.meta.env.VITE_COBALT_API || 'https://cobalt-xyz.up.railway.app';
-  const apiUrl = settings.url ? settings.url.replace(/\/$/, '') : defaultApi;
-
-  const headers = {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
-  };
-
-  if (settings.apiKey) {
-    headers['Authorization'] = `Api-Key ${settings.apiKey}`;
-  }
-
-  const res = await fetch(apiUrl, {
+  const res = await fetch('/api/cobalt-proxy', {
     method: 'POST',
-    headers,
+    headers: {
+      'Content-Type': 'application/json'
+    },
     body: JSON.stringify(body),
   });
 
