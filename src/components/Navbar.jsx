@@ -35,6 +35,7 @@ export default function Navbar({ theme, onToggleTheme, currentView, onNavigate }
           >
             <span>⚙️ </span>Settings
           </button>
+          
           <button
             className="nav-btn theme-toggle"
             onClick={onToggleTheme}

@@ -1,51 +1,28 @@
 import { useState, useEffect } from 'react';
-import { fetchHistory, clearHistory } from '../api';
+import { getHistory, clearAllHistory } from '../cobalt';
 
 const platformIcons = {
   youtube: '🎬',
   twitter: '𝕏',
   facebook: '📘',
   instagram: '📸',
+  tiktok: '🎵',
+  reddit: '📱',
+  soundcloud: '🔊',
+  vimeo: '🎥',
+  twitch: '🟣',
 };
 
 export default function HistoryPanel() {
   const [history, setHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadHistory();
+    setHistory(getHistory());
   }, []);
 
-  async function loadHistory() {
-    try {
-      const data = await fetchHistory();
-      setHistory(data.history || []);
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleClear() {
-    try {
-      await clearHistory();
-      setHistory([]);
-    } catch {
-      // ignore
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="history-panel animate-fade">
-        <h3>📋 Download History</h3>
-        <div className="loading-overlay" style={{ padding: '30px 0' }}>
-          <div className="spinner spinner-lg spinner-purple"></div>
-          <p>Loading history...</p>
-        </div>
-      </div>
-    );
+  function handleClear() {
+    clearAllHistory();
+    setHistory([]);
   }
 
   return (
@@ -61,6 +38,9 @@ export default function HistoryPanel() {
       {history.length === 0 ? (
         <div className="history-empty">
           <p>📭 No downloads yet. Your download history will appear here.</p>
+          <p style={{ fontSize: '0.75rem', marginTop: 8, color: 'var(--text-muted)' }}>
+            History is stored locally in your browser.
+          </p>
         </div>
       ) : (
         <div className="history-list">

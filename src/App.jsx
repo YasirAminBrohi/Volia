@@ -3,41 +3,27 @@ import Particles from './components/Particles';
 import Navbar from './components/Navbar';
 import PlatformSelector from './components/PlatformSelector';
 import UrlInput from './components/UrlInput';
-import MediaCard from './components/MediaCard';
-import FormatList from './components/FormatList';
+import QualitySelector from './components/QualitySelector';
+import PickerModal from './components/PickerModal';
 import HistoryPanel from './components/HistoryPanel';
 import AboutSection from './components/AboutSection';
 import SettingsPanel from './components/SettingsPanel';
 import Toast from './components/Toast';
-import { extractMediaInfo, downloadMedia, getDownloadFileUrl, fetchProgress } from './api';
-
-function formatBytes(bytes) {
-  if (!bytes || bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-function formatTime(seconds) {
-  if (!seconds || seconds === 0) return '0s';
-  const m = Math.floor(seconds / 60);
-  const s = Math.floor(seconds % 60);
-  if (m > 0) return `${m}m ${s}s`;
-  return `${s}s`;
-}
+import { downloadWithCobalt, triggerDownload, addToHistory, detectPlatform } from './cobalt';
 
 export default function App() {
   const [theme, setTheme] = useState('dark');
   const [currentView, setCurrentView] = useState('home');
   const [platform, setPlatform] = useState(null);
-  const [mediaInfo, setMediaInfo] = useState(null);
-  const [selectedFormat, setSelectedFormat] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState(null);
   const [toasts, setToasts] = useState([]);
-  const [downloadProgress, setDownloadProgress] = useState(null);
+  const [pickerData, setPickerData] = useState(null);
+  const [qualityOptions, setQualityOptions] = useState({
+    videoQuality: '1080',
+    downloadMode: 'auto',
+    audioFormat: 'mp3',
+  });
 
   const addToast = useCallback((type, message) => {
     const id = Date.now() + Math.random();
@@ -56,84 +42,50 @@ export default function App() {
 
   function handleNavigate(view) {
     setCurrentView(view);
-    if (view === 'home') {
-      // Don't reset state when navigating home
-    }
   }
 
   function resetState() {
-    setMediaInfo(null);
-    setSelectedFormat(null);
     setError(null);
+    setPickerData(null);
   }
 
-  async function handleFetch(url, detectedPlatform) {
+  async function handleDownload(url) {
     resetState();
     setLoading(true);
+
+    const detectedPlatform = detectPlatform(url) || platform;
+
     try {
-      const info = await extractMediaInfo(url, detectedPlatform || platform);
-      setMediaInfo(info);
-      if (info.formats && info.formats.length > 0) {
-        // Auto-select first video+audio format, or first format
-        const best = info.formats.find(f => f.has_video && f.has_audio) || info.formats[0];
-        setSelectedFormat(best.format_id);
+      addToast('info', 'Processing your download...');
+      const result = await downloadWithCobalt(url, qualityOptions);
+
+      if (result.status === 'redirect' || result.status === 'tunnel') {
+        // Direct download
+        triggerDownload(result.url, result.filename, result.status);
+        addToast('success', `Download started: ${result.filename || 'media file'}`);
+
+        // Save to local history
+        addToHistory({
+          url,
+          platform: detectedPlatform,
+          filename: result.filename || 'Unknown',
+        });
+      } else if (result.status === 'picker') {
+        // Multiple items — show picker modal
+        setPickerData(result);
+        addToast('info', `Found ${result.picker.length} items to choose from`);
       }
-      addToast('success', `Found ${info.formats?.length || 0} formats for "${info.title}"`);
     } catch (err) {
-      setError(err.message || 'Failed to extract media info');
-      addToast('error', err.message || 'Failed to extract media info');
+      const msg = err.message || 'Download failed. Please try again.';
+      setError(msg);
+      addToast('error', msg);
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleDownload() {
-    if (!mediaInfo || !selectedFormat) return;
-    setDownloading(true);
-    setDownloadProgress(null);
-    addToast('info', 'Starting download...');
-    
-    const taskId = Date.now().toString() + Math.random().toString(36).substring(7);
-    let progressInterval = null;
-    
-    try {
-      progressInterval = setInterval(async () => {
-        try {
-          const prog = await fetchProgress(taskId);
-          if (prog && prog.status === 'downloading') {
-            setDownloadProgress(prog);
-          }
-        } catch (e) {
-          // ignore polling errors
-        }
-      }, 1000);
-      
-      const result = await downloadMedia(mediaInfo.url, selectedFormat, mediaInfo.platform, taskId);
-      
-      clearInterval(progressInterval);
-      setDownloadProgress(null);
-      
-      if (result.success && result.filename) {
-        addToast('success', `Download complete: ${result.filename}`);
-        // Trigger browser download
-        const fileUrl = getDownloadFileUrl(result.filename);
-        const a = document.createElement('a');
-        a.href = fileUrl;
-        a.download = result.filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      } else {
-        addToast('error', result.message || 'Download failed');
-      }
-    } catch (err) {
-      if (progressInterval) clearInterval(progressInterval);
-      setDownloadProgress(null);
-      addToast('error', err.message || 'Download failed');
-    } finally {
-      setDownloading(false);
-      setDownloadProgress(null);
-    }
+  function handlePickerClose() {
+    setPickerData(null);
   }
 
   return (
@@ -146,6 +98,11 @@ export default function App() {
         onNavigate={handleNavigate}
       />
       <Toast toasts={toasts} onRemove={removeToast} />
+
+      {/* Picker Modal */}
+      {pickerData && (
+        <PickerModal data={pickerData} onClose={handlePickerClose} />
+      )}
 
       {currentView === 'home' && (
         <>
@@ -172,15 +129,21 @@ export default function App() {
             {/* URL Input */}
             <UrlInput
               platform={platform}
-              onSubmit={handleFetch}
+              onSubmit={handleDownload}
               loading={loading}
+            />
+
+            {/* Quality Options */}
+            <QualitySelector
+              options={qualityOptions}
+              onChange={setQualityOptions}
             />
 
             {/* Loading State */}
             {loading && (
               <div className="loading-overlay">
                 <div className="spinner spinner-lg spinner-purple"></div>
-                <p>Extracting media information...</p>
+                <p>Processing your download via Cobalt...</p>
               </div>
             )}
 
@@ -194,48 +157,6 @@ export default function App() {
                   Try Again
                 </button>
               </div>
-            )}
-
-            {/* Media Card */}
-            {mediaInfo && !loading && (
-              <>
-                <MediaCard media={mediaInfo} />
-                <FormatList
-                  formats={mediaInfo.formats}
-                  selected={selectedFormat}
-                  onSelect={setSelectedFormat}
-                />
-                <button
-                  className="download-action-btn"
-                  onClick={handleDownload}
-                  disabled={!selectedFormat || downloading}
-                  id="download-btn"
-                >
-                  {downloading ? (
-                    <>
-                      <span className="spinner"></span>
-                      Downloading...
-                    </>
-                  ) : (
-                    <>⬇️ Download Selected Format</>
-                  )}
-                </button>
-                {downloading && downloadProgress && (
-                  <div className="progress-container">
-                    <div className="progress-bar-wrapper">
-                      <div 
-                        className="progress-bar-fill" 
-                        style={{ width: `${downloadProgress.total_bytes ? (downloadProgress.downloaded_bytes / downloadProgress.total_bytes) * 100 : 0}%` }}
-                      ></div>
-                    </div>
-                    <div className="progress-stats">
-                      <span>{formatBytes(downloadProgress.downloaded_bytes)} / {formatBytes(downloadProgress.total_bytes)}</span>
-                      {downloadProgress.speed > 0 && <span>{formatBytes(downloadProgress.speed)}/s</span>}
-                      {downloadProgress.eta > 0 && <span>{formatTime(downloadProgress.eta)} remaining</span>}
-                    </div>
-                  </div>
-                )}
-              </>
             )}
           </div>
         </>
@@ -263,6 +184,9 @@ export default function App() {
       <footer className="footer">
         <div className="container">
           <p>© 2026 Volia — Built with ⚡ for freedom</p>
+          <p className="cobalt-badge">
+            Powered by <a href="https://cobalt.tools" target="_blank" rel="noopener noreferrer">Cobalt</a>
+          </p>
         </div>
       </footer>
     </div>

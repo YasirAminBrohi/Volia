@@ -63,7 +63,7 @@ export default function UrlInput({ platform, onSubmit, loading }) {
           <input
             type="text"
             className="url-input"
-            placeholder={dragOver ? "Drop your URL here..." : "Paste media URL here... (or drag & drop)"}
+            placeholder={dragOver ? "Drop your URL here..." : "Paste video or media URL here... (or drag & drop)"}
             value={url}
             onChange={e => setUrl(e.target.value)}
             onPaste={handlePaste}
@@ -81,10 +81,10 @@ export default function UrlInput({ platform, onSubmit, loading }) {
             {loading ? (
               <>
                 <span className="spinner"></span>
-                Fetching...
+                Processing...
               </>
             ) : (
-              <>⚡ Fetch</>
+              <>⬇️ Download</>
             )}
           </button>
         </div>
