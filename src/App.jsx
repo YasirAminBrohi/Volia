@@ -61,7 +61,7 @@ export default function App() {
 
       if (result.status === 'redirect' || result.status === 'tunnel') {
         // Direct download
-        triggerDownload(result.url, result.filename, result.status);
+        await triggerDownload(result.url, result.filename, result.status);
         addToast('success', `Download started: ${result.filename || 'media file'}`);
 
         // Save to local history

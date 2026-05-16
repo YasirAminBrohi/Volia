@@ -9,26 +9,38 @@ const TYPE_ICONS = {
 export default function PickerModal({ data, onClose }) {
   if (!data || !data.picker || data.picker.length === 0) return null;
 
-  function handleDownloadItem(item) {
-    triggerDownload(item.url, null, 'tunnel');
+  async function handleDownloadItem(item) {
+    try {
+      await triggerDownload(item.url, null, 'tunnel');
+    } catch (e) {
+      console.error(e);
+    }
   }
 
   function handleDownloadAll() {
     data.picker.forEach((item, i) => {
-      setTimeout(() => {
-        triggerDownload(item.url, null, 'tunnel');
+      setTimeout(async () => {
+        try {
+          await triggerDownload(item.url, null, 'tunnel');
+        } catch (e) { console.error(e); }
       }, i * 500); // stagger downloads to avoid browser blocking
     });
     if (data.audio) {
-      setTimeout(() => {
-        triggerDownload(data.audio, data.audioFilename || 'audio', 'tunnel');
+      setTimeout(async () => {
+        try {
+          await triggerDownload(data.audio, data.audioFilename || 'audio', 'tunnel');
+        } catch (e) { console.error(e); }
       }, data.picker.length * 500);
     }
   }
 
-  function handleDownloadAudio() {
+  async function handleDownloadAudio() {
     if (data.audio) {
-      triggerDownload(data.audio, data.audioFilename || 'audio', 'tunnel');
+      try {
+        await triggerDownload(data.audio, data.audioFilename || 'audio', 'tunnel');
+      } catch (e) {
+        console.error(e);
+      }
     }
   }
 

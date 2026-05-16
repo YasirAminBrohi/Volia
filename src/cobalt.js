@@ -147,27 +147,33 @@ export async function downloadWithCobalt(url, options = {}) {
  * @param {string} filename - Suggested filename
  * @param {string} status - 'redirect' or 'tunnel'
  */
-export function triggerDownload(url, filename, status = 'tunnel') {
+export async function triggerDownload(url, filename, status = 'tunnel') {
   if (status === 'redirect') {
     // Direct URL — open in new tab (lets browser handle the download)
     window.open(url, '_blank');
     return;
   }
 
-  // Tunnel URL — trigger download via anchor element
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = filename || 'download';
-  a.target = '_blank';
-  a.rel = 'noopener noreferrer';
-  // Setting style to hidden to avoid visual flash
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-  // Clean up after a short delay
-  setTimeout(() => {
+  // Tunnel URL — must be fetched and streamed as a blob
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Download failed with status ${response.status}`);
+    
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename || 'video';
+    document.body.appendChild(a);
+    a.click();
     document.body.removeChild(a);
-  }, 100);
+    
+    URL.revokeObjectURL(blobUrl);
+  } catch (err) {
+    console.error('Download error:', err);
+    throw err;
+  }
 }
 
 /**
