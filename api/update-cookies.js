@@ -6,8 +6,9 @@ export default async function handler(req, res) {
   const RAILWAY_TOKEN = process.env.RAILWAY_API_TOKEN;
   const SERVICE_ID = process.env.RAILWAY_SERVICE_ID;
   const ENVIRONMENT_ID = process.env.RAILWAY_ENVIRONMENT_ID;
+  const PROJECT_ID = process.env.RAILWAY_PROJECT_ID;
 
-  if (!RAILWAY_TOKEN || !SERVICE_ID || !ENVIRONMENT_ID) {
+  if (!RAILWAY_TOKEN || !SERVICE_ID || !ENVIRONMENT_ID || !PROJECT_ID) {
     return res.status(500).json({ error: 'Railway environment variables are missing on the server' });
   }
 
@@ -16,6 +17,7 @@ export default async function handler(req, res) {
     const mutation = `
       mutation {
         variableUpsert(input: {
+          projectId: "${PROJECT_ID}"
           serviceId: "${SERVICE_ID}"
           environmentId: "${ENVIRONMENT_ID}"
           name: "COOKIES_JSON"
