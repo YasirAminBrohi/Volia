@@ -1,9 +1,7 @@
-import { triggerDownload } from '../cobalt';
-
-const TYPE_ICONS = {
-  video: '🎬',
-  photo: '📸',
-  gif: '🎞️',
+const TYPE_LABELS = {
+  video: 'Video',
+  photo: 'Image',
+  gif: 'GIF',
 };
 
 export default function PickerModal({ data, onClose }) {
@@ -11,7 +9,7 @@ export default function PickerModal({ data, onClose }) {
 
   async function handleDownloadItem(item) {
     try {
-      await triggerDownload(item.url, null, 'tunnel');
+      window.open(item.url, '_blank');
     } catch (e) {
       console.error(e);
     }
@@ -21,14 +19,14 @@ export default function PickerModal({ data, onClose }) {
     data.picker.forEach((item, i) => {
       setTimeout(async () => {
         try {
-          await triggerDownload(item.url, null, 'tunnel');
+          window.open(item.url, '_blank');
         } catch (e) { console.error(e); }
-      }, i * 500); // stagger downloads to avoid browser blocking
+      }, i * 500);
     });
     if (data.audio) {
       setTimeout(async () => {
         try {
-          await triggerDownload(data.audio, data.audioFilename || 'audio', 'tunnel');
+          window.open(data.audio, '_blank');
         } catch (e) { console.error(e); }
       }, data.picker.length * 500);
     }
@@ -37,7 +35,7 @@ export default function PickerModal({ data, onClose }) {
   async function handleDownloadAudio() {
     if (data.audio) {
       try {
-        await triggerDownload(data.audio, data.audioFilename || 'audio', 'tunnel');
+        window.open(data.audio, '_blank');
       } catch (e) {
         console.error(e);
       }
@@ -48,12 +46,12 @@ export default function PickerModal({ data, onClose }) {
     <div className="picker-overlay" onClick={onClose} id="picker-overlay">
       <div className="picker-modal animate-slide" onClick={e => e.stopPropagation()}>
         <div className="picker-header">
-          <h3>📦 Multiple Items Found ({data.picker.length})</h3>
-          <button className="picker-close" onClick={onClose} id="picker-close">✕</button>
+          <h3>Multiple Items Found ({data.picker.length})</h3>
+          <button className="picker-close" onClick={onClose} id="picker-close">Close</button>
         </div>
 
         <p className="picker-desc">
-          This post contains multiple items. Download them individually or all at once.
+          Volia found several files in this post. Choose individual items or download the full set.
         </p>
 
         <div className="picker-grid">
@@ -68,16 +66,16 @@ export default function PickerModal({ data, onClose }) {
                 <img src={item.thumb} alt={`Item ${i + 1}`} className="picker-thumb" loading="lazy" />
               ) : (
                 <div className="picker-thumb-placeholder">
-                  {TYPE_ICONS[item.type] || '📁'}
+                  {TYPE_LABELS[item.type] || 'File'}
                 </div>
               )}
               <div className="picker-item-info">
                 <span className="picker-type-badge">
-                  {TYPE_ICONS[item.type] || '📁'} {item.type || 'file'}
+                  {TYPE_LABELS[item.type] || item.type || 'File'}
                 </span>
                 <span className="picker-item-num">#{i + 1}</span>
               </div>
-              <div className="picker-item-dl">⬇️</div>
+              <div className="picker-item-dl">Download</div>
             </div>
           ))}
         </div>
@@ -88,7 +86,7 @@ export default function PickerModal({ data, onClose }) {
             onClick={handleDownloadAll}
             id="download-all-btn"
           >
-            ⬇️ Download All ({data.picker.length} items)
+            Download All ({data.picker.length} items)
           </button>
 
           {data.audio && (
@@ -97,7 +95,7 @@ export default function PickerModal({ data, onClose }) {
               onClick={handleDownloadAudio}
               id="download-audio-btn"
             >
-              🎵 Download Audio Track
+              Download Audio Track
             </button>
           )}
         </div>

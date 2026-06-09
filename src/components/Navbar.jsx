@@ -3,8 +3,7 @@ export default function Navbar({ theme, onToggleTheme, currentView, onNavigate }
     <nav className="navbar">
       <div className="container navbar-inner">
         <a href="#" className="logo" onClick={e => { e.preventDefault(); onNavigate('home'); }}>
-          <img src="/logo.png" alt="Volia Logo" className="logo-icon" />
-          Volia
+          <img src="/volia-logo.svg" alt="Volia by NAAADLI" className="logo-wordmark" />
         </a>
         <div className="nav-links">
           <button
@@ -12,37 +11,37 @@ export default function Navbar({ theme, onToggleTheme, currentView, onNavigate }
             onClick={() => onNavigate('home')}
             id="nav-home"
           >
-            <span>🏠 </span>Home
+            Home
           </button>
           <button
             className={`nav-btn ${currentView === 'history' ? 'active' : ''}`}
             onClick={() => onNavigate('history')}
             id="nav-history"
           >
-            <span>📋 </span>History
+            History
           </button>
           <button
             className={`nav-btn ${currentView === 'about' ? 'active' : ''}`}
             onClick={() => onNavigate('about')}
             id="nav-about"
           >
-            <span>👤 </span>About
+            About
           </button>
           <button
             className={`nav-btn ${currentView === 'settings' ? 'active' : ''}`}
             onClick={() => onNavigate('settings')}
             id="nav-settings"
           >
-            <span>⚙️ </span>Settings
+            Settings
           </button>
-          
+
           <button
             className="nav-btn theme-toggle"
             onClick={onToggleTheme}
             title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             id="theme-toggle"
           >
-            {theme === 'dark' ? '☀️' : '🌙'}
+            {theme === 'dark' ? 'Light' : 'Dark'}
           </button>
         </div>
       </div>

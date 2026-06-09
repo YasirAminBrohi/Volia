@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 
 const PLATFORM_MAP = {
   youtube: 'YouTube',
-  twitter: 'X (Twitter)',
+  twitter: 'X / Twitter',
   facebook: 'Facebook',
   instagram: 'Instagram',
+  spotify: 'Spotify',
 };
 
 function detectFromUrl(url) {
@@ -13,11 +14,11 @@ function detectFromUrl(url) {
   if (/twitter\.com|x\.com/i.test(url)) return 'twitter';
   if (/facebook\.com|fb\.watch/i.test(url)) return 'facebook';
   if (/instagram\.com/i.test(url)) return 'instagram';
+  if (/spotify\.com/i.test(url)) return 'spotify';
   return null;
 }
 
-export default function UrlInput({ platform, onSubmit, loading }) {
-  const [url, setUrl] = useState('');
+export default function UrlInput({ url, setUrl, platform, onSubmit, loading, isAnalyzing, isImageLink }) {
   const [detected, setDetected] = useState(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -43,10 +44,8 @@ export default function UrlInput({ platform, onSubmit, loading }) {
   }
 
   function handlePaste(e) {
-    // Allow native paste, just track
     setTimeout(() => {
-      const val = e.target.value;
-      setUrl(val);
+      setUrl(e.target.value);
     }, 0);
   }
 
@@ -59,11 +58,11 @@ export default function UrlInput({ platform, onSubmit, loading }) {
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}
         >
-          <div className="input-icon">🔗</div>
+          <div className="input-icon">{isImageLink ? 'IMG' : 'URL'}</div>
           <input
             type="text"
             className="url-input"
-            placeholder={dragOver ? "Drop your URL here..." : "Paste video or media URL here... (or drag & drop)"}
+            placeholder={dragOver ? 'Drop your link here' : 'Paste a media link and let Volia prepare it'}
             value={url}
             onChange={e => setUrl(e.target.value)}
             onPaste={handlePaste}
@@ -81,17 +80,21 @@ export default function UrlInput({ platform, onSubmit, loading }) {
             {loading ? (
               <>
                 <span className="spinner"></span>
-                Processing...
+                Working...
               </>
+            ) : isImageLink ? (
+              <>Download Images</>
             ) : (
-              <>⬇️ Download</>
+              <>Start Download</>
             )}
           </button>
         </div>
       </form>
       {detected && !loading && (
         <div className="detected-badge">
-          ✨ Auto-detected: <strong>{PLATFORM_MAP[detected] || detected}</strong>
+          Auto-detected: <strong>{PLATFORM_MAP[detected] || detected}</strong>
+          {isImageLink && <span className="image-badge">Image post</span>}
+          {isAnalyzing && <span className="analyzing-badge">Analyzing...</span>}
         </div>
       )}
     </div>

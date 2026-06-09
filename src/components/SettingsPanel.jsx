@@ -1,197 +1,194 @@
-import { useState, useEffect, useRef } from 'react';
-import { getCobaltSettings, saveCobaltSettings } from '../cobalt';
-import { parseCookiesTxt, toCobaltCookiesJson } from '../utils/cookieParser';
+import { useState, useEffect } from 'react';
+import { getCookieSettings, setCookieBrowser, syncCookies } from '../utils/api';
 
 export default function SettingsPanel() {
-  const [settings, setSettings] = useState({ url: '', apiKey: '' });
+  const [settings, setSettings] = useState({ 
+    theme: localStorage.getItem('volia_theme') || 'dark',
+    autoDownload: localStorage.getItem('volia_auto_download') === 'true'
+  });
   const [saved, setSaved] = useState(false);
-  
-  // Cookies state
-  const [cookieStatus, setCookieStatus] = useState('idle'); // idle, uploading, success, error
-  const [cookieError, setCookieError] = useState('');
-  const [lastUploaded, setLastUploaded] = useState(null);
-  const fileInputRef = useRef(null);
+
+  // Cookie/Browser settings state
+  const [cookieInfo, setCookieInfo] = useState({
+    preferred_browser: 'edge',
+    cookie_file: null,
+    supported_browsers: ['edge', 'chrome', 'firefox', 'brave', 'opera', 'chromium']
+  });
+  const [syncStatus, setSyncStatus] = useState({ success: null, message: '' });
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
-    setSettings(getCobaltSettings());
-    const savedTime = localStorage.getItem('volia_cookie_uploaded');
-    if (savedTime) setLastUploaded(savedTime);
+    async function loadCookieSettings() {
+      try {
+        const data = await getCookieSettings();
+        if (data) {
+          setCookieInfo(data);
+        }
+      } catch (err) {
+        console.error("Failed to load cookie settings:", err);
+      }
+    }
+    loadCookieSettings();
   }, []);
 
-  function handleSubmit(e) {
-    e.preventDefault();
-    saveCobaltSettings(settings);
+  async function handleBrowserChange(browser) {
+    try {
+      const res = await setCookieBrowser(browser);
+      if (res.success) {
+        setCookieInfo(prev => ({ ...prev, preferred_browser: browser }));
+      }
+    } catch (err) {
+      console.error("Failed to set preferred browser:", err);
+    }
+  }
+
+  async function handleSyncCookies() {
+    setSyncing(true);
+    setSyncStatus({ success: null, message: '' });
+    try {
+      const res = await syncCookies();
+      if (res.success) {
+        setSyncStatus({ success: true, message: res.message || 'Successfully synced cookies!' });
+        setCookieInfo(prev => ({ ...prev, cookie_file: res.cookie_file }));
+      } else {
+        setSyncStatus({ success: false, message: res.message || 'Sync failed.' });
+      }
+    } catch (err) {
+      setSyncStatus({ success: false, message: err.message || 'Sync failed.' });
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  function handleSave() {
+    localStorage.setItem('volia_theme', settings.theme);
+    localStorage.setItem('volia_auto_download', settings.autoDownload);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   }
 
-  async function handleFileUpload(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    setCookieStatus('uploading');
-    setCookieError('');
-
-    try {
-      const text = await file.text();
-      const parsed = parseCookiesTxt(text);
-      
-      if (parsed.length === 0) {
-        throw new Error('No YouTube cookies found in this file. Make sure you are logged into YouTube and using the correct extension.');
-      }
-
-      const payload = toCobaltCookiesJson(parsed);
-
-      const res = await fetch('/api/update-cookies', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cookies: payload })
-      });
-
-      const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data.error || 'Failed to update cookies');
-      }
-
-      setCookieStatus('success');
-      const now = new Date().toISOString();
-      setLastUploaded(now);
-      localStorage.setItem('volia_cookie_uploaded', now);
-      
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    } catch (err) {
-      console.error(err);
-      setCookieStatus('error');
-      setCookieError(err.message);
-    }
-  }
-
-  function getCookieAgeWarning() {
-    if (!lastUploaded) return null;
-    const daysOld = (new Date() - new Date(lastUploaded)) / (1000 * 60 * 60 * 24);
-    if (daysOld > 7) {
-      return <span style={{ color: '#ef4444', fontSize: '0.8rem', display: 'block', marginTop: '4px' }}>⚠️ Cookies may be expired. Please re-upload.</span>;
-    }
-    return null;
-  }
-
   return (
     <div className="settings-panel animate-fade">
-      <h2 className="settings-title">⚙️ Settings</h2>
+      <h2 className="settings-title">Settings</h2>
 
       <div className="settings-section">
-        <h3 className="settings-section-title">🔌 Cobalt API Configuration</h3>
+        <h3 className="settings-section-title">Appearance</h3>
         <p className="settings-description">
-          By default, Volia uses a private Cobalt instance. If you are experiencing errors or want to use your own, 
-          you can configure a custom self-hosted Cobalt instance URL or provide an API key.
+          Tune Volia so the workspace feels comfortable on your device.
         </p>
 
-        <form onSubmit={handleSubmit} className="settings-form">
-          <div className="form-group" style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              Instance URL
-            </label>
-            <input
-              type="url"
-              value={settings.url}
-              onChange={e => setSettings({ ...settings, url: e.target.value })}
-              placeholder={import.meta.env.VITE_COBALT_API || "https://cobalt-production-5c76.up.railway.app"}
-              style={{
-                width: '100%',
-                padding: '12px',
-                background: 'var(--bg-input)',
-                border: '1px solid var(--border-glass)',
-                borderRadius: 'var(--radius-md)',
-                color: 'var(--text-primary)',
-                fontFamily: 'var(--font-sans)'
-              }}
-            />
-          </div>
-
-          <div className="form-group" style={{ marginBottom: '24px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              API Key (Optional)
-            </label>
-            <input
-              type="password"
-              value={settings.apiKey}
-              onChange={e => setSettings({ ...settings, apiKey: e.target.value })}
-              placeholder="Enter your Api-Key here"
-              style={{
-                width: '100%',
-                padding: '12px',
-                background: 'var(--bg-input)',
-                border: '1px solid var(--border-glass)',
-                borderRadius: 'var(--radius-md)',
-                color: 'var(--text-primary)',
-                fontFamily: 'var(--font-sans)'
-              }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <button type="submit" className="settings-btn primary" style={{ width: 'auto' }}>
-              💾 Save Settings
-            </button>
-            {saved && <span style={{ color: '#22c55e', fontSize: '0.9rem' }}>✅ Saved successfully</span>}
-          </div>
-        </form>
+        <div className="form-group" style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            Theme
+          </label>
+          <select
+            value={settings.theme}
+            onChange={e => setSettings({ ...settings, theme: e.target.value })}
+            style={{
+              width: '100%',
+              padding: '12px',
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border-glass)',
+              borderRadius: 'var(--radius-md)',
+              color: 'var(--text-primary)',
+              fontFamily: 'var(--font-sans)'
+            }}
+          >
+            <option value="dark">Dark Mode</option>
+            <option value="light">Light Mode</option>
+          </select>
+        </div>
       </div>
 
       <div className="settings-section" style={{ marginTop: '32px' }}>
-        <h3 className="settings-section-title">🍪 YouTube Cookie Manager</h3>
-        <p className="settings-description">
-          To download age-restricted or premium YouTube videos, you need to provide your YouTube cookies. 
-          Install the <a href="https://chrome.google.com/webstore/detail/get-cookiestxt-locally/cclelndahbckbenkjhflpdbgdldlbecc" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-primary)' }}>Get cookies.txt LOCALLY</a> extension, 
-          visit youtube.com while logged in, click the extension and export <code>cookies.txt</code>.
+        <h3 className="settings-section-title">Preferences</h3>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '16px' }}>
+          <input
+            type="checkbox"
+            id="autoDownload"
+            checked={settings.autoDownload}
+            onChange={e => setSettings({ ...settings, autoDownload: e.target.checked })}
+          />
+          <label htmlFor="autoDownload" style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+            Auto-start download after extraction
+          </label>
+        </div>
+      </div>
+
+      <div className="settings-section" style={{ marginTop: '32px' }}>
+        <h3 className="settings-section-title">Cookie Syncing for X and Instagram</h3>
+        <p className="settings-description" style={{ marginBottom: '12px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          Some X and Instagram media needs browser cookies from an account where you are already logged in.
         </p>
 
-        <div style={{ background: 'var(--bg-glass)', padding: '20px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-glass)' }}>
-          <div style={{ marginBottom: '16px' }}>
-            <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Status: </span>
-            {lastUploaded ? (
-              <span style={{ color: '#22c55e', fontSize: '0.9rem' }}>
-                Cookies active (Uploaded {new Date(lastUploaded).toLocaleDateString()})
-              </span>
-            ) : (
-              <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>No cookies uploaded</span>
-            )}
-            {getCookieAgeWarning()}
-          </div>
+        <div className="form-group" style={{ marginBottom: '16px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            Select Browser to Sync From
+          </label>
+          <select
+            value={cookieInfo.preferred_browser || 'edge'}
+            onChange={e => handleBrowserChange(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '12px',
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border-glass)',
+              borderRadius: 'var(--radius-md)',
+              color: 'var(--text-primary)',
+              fontFamily: 'var(--font-sans)',
+              marginBottom: '16px'
+            }}
+          >
+            {cookieInfo.supported_browsers.map(b => (
+              <option key={b} value={b}>{b.toUpperCase()}</option>
+            ))}
+          </select>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <input 
-              type="file" 
-              accept=".txt" 
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-              style={{ display: 'none' }}
-              id="cookie-upload"
-            />
-            
-            <button 
-              className="settings-btn primary" 
-              onClick={() => document.getElementById('cookie-upload').click()}
-              disabled={cookieStatus === 'uploading'}
-              style={{ width: 'auto', alignSelf: 'flex-start' }}
-            >
-              {cookieStatus === 'uploading' ? '⏳ Pushing to Cobalt...' : '📤 Upload cookies.txt'}
-            </button>
+          <button 
+            onClick={handleSyncCookies} 
+            disabled={syncing}
+            className={`settings-btn ${syncing ? 'loading' : ''}`}
+            style={{ 
+              width: '100%', 
+              background: 'linear-gradient(135deg, #a855f7 0%, #6366f1 100%)',
+              color: 'white',
+              border: 'none',
+              padding: '12px',
+              borderRadius: 'var(--radius-md)',
+              fontWeight: '500',
+              cursor: syncing ? 'not-allowed' : 'pointer'
+            }}
+          >
+            {syncing ? 'Syncing Cookies...' : 'Sync Browser Cookies'}
+          </button>
 
-            {cookieStatus === 'success' && (
-              <div style={{ padding: '12px', background: 'rgba(34, 197, 94, 0.1)', border: '1px solid #22c55e', borderRadius: '4px', color: '#22c55e', fontSize: '0.85rem' }}>
-                ✅ Cookies uploaded! Cobalt is restarting (takes ~30 seconds)
-              </div>
-            )}
+          {syncStatus.message && (
+            <div style={{ 
+              marginTop: '12px', 
+              padding: '12px', 
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: syncStatus.success ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+              border: syncStatus.success ? '1px solid rgba(34, 197, 94, 0.2)' : '1px solid rgba(239, 68, 68, 0.2)',
+              color: syncStatus.success ? '#22c55e' : '#ef4444',
+              fontSize: '0.85rem'
+            }}>
+              {syncStatus.message}
+            </div>
+          )}
 
-            {cookieStatus === 'error' && (
-              <div style={{ padding: '12px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', borderRadius: '4px', color: '#ef4444', fontSize: '0.85rem' }}>
-                ❌ Error: {cookieError}
-              </div>
-            )}
-          </div>
+          {cookieInfo.cookie_file && (
+            <div style={{ marginTop: '12px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+              Active cookie file: <code style={{ fontSize: '0.75rem', wordBreak: 'break-all' }}>{cookieInfo.cookie_file}</code>
+            </div>
+          )}
         </div>
+      </div>
+
+      <div style={{ marginTop: '40px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <button onClick={handleSave} className="settings-btn primary" style={{ width: 'auto' }}>
+          Save Settings
+        </button>
+        {saved && <span style={{ color: '#22c55e', fontSize: '0.9rem' }}>Settings saved</span>}
       </div>
     </div>
   );

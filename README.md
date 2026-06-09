@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="./public/logo.png" alt="Volia Logo" width="120" />
+  <img src="./public/volia-logo.svg" alt="Volia Logo" width="180" />
   <h1>Volia — Universal Media Downloader</h1>
   <p><strong>A stunning, lightning-fast frontend for downloading media from anywhere on the web.</strong></p>
 

@@ -16,11 +16,11 @@ function ToastItem({ toast, onRemove }) {
     return () => clearTimeout(timer);
   }, [toast.id, onRemove]);
 
-  const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+  const labels = { success: 'Done', error: 'Error', info: 'Info' };
 
   return (
     <div className={`toast ${toast.type}`} onClick={() => onRemove(toast.id)}>
-      <span>{icons[toast.type] || 'ℹ️'}</span>
+      <span>{labels[toast.type] || 'Info'}</span>
       <span>{toast.message}</span>
     </div>
   );
