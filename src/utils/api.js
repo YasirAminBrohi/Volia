@@ -27,7 +27,7 @@ export async function startDownload(url, format_id, platform = null) {
 }
 
 export function getDownloadUrl(filename) {
-  return `${API_BASE}/api/download/file/${filename}`;
+  return `${API_BASE}/api/download-file/${encodeURIComponent(filename)}`;
 }
 
 export async function getHistory() {

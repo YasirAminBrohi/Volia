@@ -386,11 +386,49 @@ export default function App() {
 
       {/* Footer */}
       <footer className="footer">
-        <div className="container">
-          <p>Volia by Muhammad Yasir</p>
-          <p className="backend-badge">
-            Powered by NAAADLI: Nahdat al-Asr al-Dhahabi lil-Islam
-          </p>
+        <div className="container footer-content">
+          <div className="footer-top">
+            <div className="footer-brand">
+              <span className="footer-logo-text">Volia</span>
+              <p className="footer-tagline">Giving media its freedom. Simple, fast, and local.</p>
+            </div>
+            <div className="footer-naaadli">
+              <span className="naaadli-badge">NAAADLI INITIATIVE</span>
+              <p className="naaadli-expanded">Nahḍat al-ʿAṣr al-Dhahabī lil-Islām</p>
+              <p className="naaadli-translation">The Revival & Renaissance of the Golden Age of Islam</p>
+            </div>
+          </div>
+          <div className="footer-bottom">
+            <p className="footer-author">
+              © {new Date().getFullYear()} Volia. Built by{' '}
+              <a
+                href="https://www.linkedin.com/in/muhammad-yasir-402a67237"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="author-link"
+              >
+                Muhammad Yasir
+              </a>
+            </p>
+            <div className="footer-links">
+              <a
+                href="https://www.instagram.com/yasiraminbrohi/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="footer-link"
+              >
+                Instagram
+              </a>
+              <a
+                href="https://www.linkedin.com/in/muhammad-yasir-402a67237"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="footer-link"
+              >
+                LinkedIn
+              </a>
+            </div>
+          </div>
         </div>
       </footer>
     </div>
