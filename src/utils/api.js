@@ -71,3 +71,20 @@ export async function syncCookies() {
   });
   return res.json();
 }
+
+export async function uploadCookies(cookiesText) {
+  const res = await fetch(`${API_BASE}/api/settings/cookies/upload`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cookies_text: cookiesText })
+  });
+  return res.json();
+}
+
+export async function deleteCookies() {
+  const res = await fetch(`${API_BASE}/api/settings/cookies/upload`, {
+    method: 'DELETE'
+  });
+  return res.json();
+}
+
