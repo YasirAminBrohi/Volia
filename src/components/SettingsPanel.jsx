@@ -54,7 +54,7 @@ export default function SettingsPanel() {
       const res = await syncCookies();
       if (res.success) {
         setSyncStatus({ success: true, message: res.message || 'Successfully synced cookies!' });
-        setCookieInfo(prev => ({ ...prev, cookie_file: res.cookie_file }));
+        setCookieInfo(prev => ({ ...prev, cookie_file: res.cookie_file, cookie_analysis: res.cookie_analysis }));
       } else {
         setSyncStatus({ success: false, message: res.message || 'Sync failed.' });
       }
@@ -87,7 +87,7 @@ export default function SettingsPanel() {
       const res = await uploadCookies(customCookies);
       if (res.success) {
         setUploadStatus({ success: true, message: res.message || 'Cookies uploaded successfully!' });
-        setCookieInfo(prev => ({ ...prev, cookie_file: res.cookie_file }));
+        setCookieInfo(prev => ({ ...prev, cookie_file: res.cookie_file, cookie_analysis: res.cookie_analysis }));
         setCustomCookies(''); // clear textarea after upload
       } else {
         setUploadStatus({ success: false, message: res.message || 'Failed to upload cookies.' });
@@ -106,7 +106,7 @@ export default function SettingsPanel() {
       const res = await deleteCookies();
       if (res.success) {
         setUploadStatus({ success: true, message: res.message || 'Custom cookies cleared!' });
-        setCookieInfo(prev => ({ ...prev, cookie_file: null }));
+        setCookieInfo(prev => ({ ...prev, cookie_file: null, cookie_analysis: null }));
       } else {
         setUploadStatus({ success: false, message: res.message || 'Failed to clear cookies.' });
       }
@@ -373,8 +373,64 @@ export default function SettingsPanel() {
             )}
 
             {cookieInfo.cookie_file && (
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                Active cookie source: <code style={{ fontSize: '0.75rem', wordBreak: 'break-all' }}>{cookieInfo.cookie_file}</code>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.85rem' }}>
+                <div style={{ color: 'var(--text-secondary)' }}>
+                  Active cookie source: <code style={{ fontSize: '0.75rem', wordBreak: 'break-all', color: 'var(--accent-purple)' }}>{cookieInfo.cookie_file}</code>
+                </div>
+                {cookieInfo.cookie_analysis && cookieInfo.cookie_analysis.exists && (
+                  <div style={{
+                    padding: '12px',
+                    borderRadius: 'var(--radius-md)',
+                    background: 'rgba(255, 255, 255, 0.02)',
+                    border: '1px solid var(--border-glass)',
+                    fontSize: '0.8rem',
+                    color: 'var(--text-primary)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                    width: '100%',
+                    boxSizing: 'border-box'
+                  }}>
+                    <span style={{ fontWeight: '500', color: 'var(--accent-purple)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      📊 Cookie Diagnostics:
+                    </span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '4px' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Total Cookies:</span>
+                      <span>{cookieInfo.cookie_analysis.num_cookies}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '4px' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>YouTube Cookies:</span>
+                      <span style={{ 
+                        color: cookieInfo.cookie_analysis.youtube_cookies_count > 0 ? '#22c55e' : '#ef4444',
+                        fontWeight: cookieInfo.cookie_analysis.youtube_cookies_count > 0 ? '500' : 'normal'
+                      }}>
+                        {cookieInfo.cookie_analysis.youtube_cookies_count}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '4px' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Google Cookies:</span>
+                      <span style={{ 
+                        color: cookieInfo.cookie_analysis.google_cookies_count > 0 ? '#22c55e' : '#ef4444',
+                        fontWeight: cookieInfo.cookie_analysis.google_cookies_count > 0 ? '500' : 'normal'
+                      }}>
+                        {cookieInfo.cookie_analysis.google_cookies_count}
+                      </span>
+                    </div>
+                    {cookieInfo.cookie_analysis.youtube_cookies_count === 0 && (
+                      <div style={{ 
+                        marginTop: '4px', 
+                        color: '#f59e0b', 
+                        fontSize: '0.75rem',
+                        display: 'flex',
+                        alignItems: 'start',
+                        gap: '6px',
+                        lineHeight: '1.4'
+                      }}>
+                        ⚠️ <strong>Warning:</strong> No YouTube session cookies found. yt-dlp might fail to authenticate. Please make sure you are logged in to YouTube in the browser you exported cookies from.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
