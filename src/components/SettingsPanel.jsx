@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getCookieSettings, setCookieBrowser, syncCookies, getStoredCookies, saveStoredCookies, clearStoredCookies, analyzeCookiesLocally } from '../utils/api';
+import { getCookieSettings, setCookieBrowser, syncCookies, getStoredCookies, saveStoredCookies, clearStoredCookies, analyzeCookiesLocally, uploadCookiesToServer, deleteCookiesFromServer } from '../utils/api';
 
 export default function SettingsPanel() {
   const [settings, setSettings] = useState({ 
@@ -88,7 +88,7 @@ export default function SettingsPanel() {
     reader.readAsText(file);
   }
 
-  function handleUploadCookies() {
+  async function handleUploadCookies() {
     if (!customCookies || !customCookies.trim()) {
       setUploadStatus({ success: false, message: 'Please upload a cookies.txt file or paste cookie content.' });
       return;
@@ -101,19 +101,30 @@ export default function SettingsPanel() {
       return;
     }
 
-    // Save to localStorage — instant, no server call needed
+    // Save to localStorage (for per-request POST calls like /extract)
     saveStoredCookies(customCookies);
     setCookieAnalysis(analysis);
     setHasSavedCookies(true);
-    setUploadStatus({ success: true, message: `✅ ${analysis.message}. Cookies saved to your browser and will be sent with every download request.` });
+    setUploadStatus({ success: null, message: '⏳ Saving cookies...' });
+
+    // Also upload to server (needed for SSE streaming downloads which use GET requests)
+    const serverResult = await uploadCookiesToServer(customCookies);
+    if (serverResult.success) {
+      setUploadStatus({ success: true, message: `✅ ${analysis.message}. Cookies saved and ready for all download methods.` });
+    } else {
+      // localStorage save still succeeded, just server sync failed
+      setUploadStatus({ success: true, message: `✅ ${analysis.message}. Saved locally (server sync pending on next deploy).` });
+    }
     setCustomCookies(''); // clear textarea after save
   }
 
-  function handleDeleteCookies() {
+  async function handleDeleteCookies() {
     clearStoredCookies();
     setCookieAnalysis(null);
     setHasSavedCookies(false);
-    setUploadStatus({ success: true, message: 'Custom cookies cleared from your browser.' });
+    setUploadStatus({ success: true, message: 'Cookies cleared.' });
+    // Also clear from server
+    await deleteCookiesFromServer();
   }
 
 

@@ -117,3 +117,31 @@ export function analyzeCookiesLocally(cookiesText) {
     message: `Loaded ${num_cookies} cookies (${youtube_cookies} YouTube, ${google_cookies} Google)`
   };
 }
+
+/** Upload cookies to the server (needed for SSE streaming downloads which use GET) */
+export async function uploadCookiesToServer(cookiesText) {
+  try {
+    const res = await fetch(`${API_BASE}/api/settings/cookies/upload`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cookies_text: cookiesText })
+    });
+    return res.json();
+  } catch (err) {
+    console.error('Failed to upload cookies to server:', err);
+    return { success: false, message: err.message };
+  }
+}
+
+/** Delete cookies from the server */
+export async function deleteCookiesFromServer() {
+  try {
+    const res = await fetch(`${API_BASE}/api/settings/cookies/upload`, {
+      method: 'DELETE'
+    });
+    return res.json();
+  } catch (err) {
+    console.error('Failed to delete cookies from server:', err);
+    return { success: false, message: err.message };
+  }
+}
