@@ -24,7 +24,7 @@ const AUDIO_FORMATS = [
   { value: 'opus', label: 'OPUS' },
 ];
 
-export default function QualitySelector({ options, onChange, formats }) {
+export default function QualitySelector({ options, onChange, formats, isLoading }) {
   const [expanded, setExpanded] = useState(false);
 
   function update(key, value) {
@@ -134,6 +134,28 @@ export default function QualitySelector({ options, onChange, formats }) {
       )}
 
       {/* Specific Formats List */}
+      {isLoading && filteredFormats.length === 0 && (
+        <div style={{ marginTop: '24px' }}>
+          <p className="section-label">Available Formats</p>
+          <div style={{
+            width: '100%',
+            padding: '14px 16px',
+            background: 'var(--bg-input)',
+            border: '1px solid var(--border-glass)',
+            borderRadius: 'var(--radius-md)',
+            color: 'var(--text-secondary)',
+            fontFamily: 'var(--font-sans)',
+            fontSize: '0.9rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            boxSizing: 'border-box'
+          }}>
+            <span className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px' }}></span>
+            Fetching available formats...
+          </div>
+        </div>
+      )}
       {filteredFormats.length > 0 && (
         <div style={{ marginTop: '24px' }}>
           <p className="section-label">Select Specific Resolution / Format (Optional)</p>

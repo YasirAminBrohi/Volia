@@ -338,14 +338,19 @@ export default function App() {
               isImageLink={isImageLink}
             />
 
-            {/* Quality Options - only shown if link is analyzed and is a video post */}
-            {cachedInfo && !isImageLink && cachedInfo.platform !== 'spotify' && (
-              <QualitySelector
-                options={qualityOptions}
-                onChange={setQualityOptions}
-                formats={cachedInfo?.formats}
-              />
-            )}
+            {/* Quality Options - show when video platform detected or cachedInfo ready */}
+            {(() => {
+              const detectedPlatform = url.trim() && /youtube\.com|youtu\.be|twitter\.com|x\.com|facebook\.com|fb\.watch|instagram\.com/i.test(url.trim());
+              const showQuality = (detectedPlatform || (cachedInfo && cachedInfo.platform !== 'spotify')) && !isImageLink;
+              return showQuality ? (
+                <QualitySelector
+                  options={qualityOptions}
+                  onChange={setQualityOptions}
+                  formats={cachedInfo?.formats}
+                  isLoading={isAnalyzing}
+                />
+              ) : null;
+            })()}
 
             {/* Loading State */}
             {loading && progress.status === 'idle' && (
