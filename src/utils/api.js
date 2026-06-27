@@ -94,10 +94,12 @@ export async function syncCookies() {
 /** Parse cookie text client-side and return analysis */
 export function analyzeCookiesLocally(cookiesText) {
   if (!cookiesText || !cookiesText.trim()) {
-    return { exists: false, num_cookies: 0, youtube_cookies_count: 0, google_cookies_count: 0, message: 'No cookies' };
+    return { exists: false, num_cookies: 0, youtube_cookies_count: 0, google_cookies_count: 0, expired_cookies_count: 0, message: 'No cookies' };
   }
   const lines = cookiesText.split('\n');
-  let num_cookies = 0, youtube_cookies = 0, google_cookies = 0;
+  let num_cookies = 0, youtube_cookies = 0, google_cookies = 0, expired_cookies = 0;
+  const currentTime = Math.floor(Date.now() / 1000);
+  
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith('#')) continue;
@@ -105,6 +107,14 @@ export function analyzeCookiesLocally(cookiesText) {
     if (parts.length >= 7) {
       num_cookies++;
       const domain = parts[0].toLowerCase();
+      
+      try {
+        const expiry = parseInt(parts[4], 10);
+        if (expiry > 0 && expiry < currentTime) {
+          expired_cookies++;
+        }
+      } catch (e) {}
+      
       if (domain.includes('youtube.com')) youtube_cookies++;
       else if (domain.includes('google.com')) google_cookies++;
     }
@@ -114,7 +124,8 @@ export function analyzeCookiesLocally(cookiesText) {
     num_cookies,
     youtube_cookies_count: youtube_cookies,
     google_cookies_count: google_cookies,
-    message: `Loaded ${num_cookies} cookies (${youtube_cookies} YouTube, ${google_cookies} Google)`
+    expired_cookies_count: expired_cookies,
+    message: `Loaded ${num_cookies} cookies (${youtube_cookies} YouTube, ${google_cookies} Google, ${expired_cookies} Expired)`
   };
 }
 

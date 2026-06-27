@@ -403,6 +403,15 @@ export default function SettingsPanel() {
                     {cookieAnalysis.google_cookies_count}
                   </span>
                 </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '4px' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Expired Cookies:</span>
+                  <span style={{ 
+                    color: cookieAnalysis.expired_cookies_count > 0 ? '#ef4444' : '#22c55e',
+                    fontWeight: cookieAnalysis.expired_cookies_count > 0 ? '500' : 'normal'
+                  }}>
+                    {cookieAnalysis.expired_cookies_count}
+                  </span>
+                </div>
                 {cookieAnalysis.youtube_cookies_count === 0 && (
                   <div style={{ 
                     marginTop: '4px', 
@@ -414,6 +423,19 @@ export default function SettingsPanel() {
                     lineHeight: '1.4'
                   }}>
                     ⚠️ <strong>Warning:</strong> No YouTube session cookies found. yt-dlp might fail to authenticate. Please make sure you are logged in to YouTube in the browser you exported cookies from.
+                  </div>
+                )}
+                {cookieAnalysis.expired_cookies_count > 0 && (
+                  <div style={{ 
+                    marginTop: '4px', 
+                    color: '#ef4444', 
+                    fontSize: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'start',
+                    gap: '6px',
+                    lineHeight: '1.4'
+                  }}>
+                    ⚠️ <strong>Warning:</strong> {cookieAnalysis.expired_cookies_count} cookie(s) are expired! YouTube will reject expired sessions. Please export a fresh cookies.txt file and upload it again.
                   </div>
                 )}
               </div>
