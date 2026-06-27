@@ -145,7 +145,11 @@ export default function App() {
       }
 
       // Use Server-Sent Events for real-time progress
-      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      let backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+      backendUrl = backendUrl.trim();
+      if (backendUrl && !backendUrl.startsWith('http://') && !backendUrl.startsWith('https://')) {
+        backendUrl = `https://${backendUrl}`;
+      }
       
       let selectedFormat = null;
       if (info.platform === 'spotify') {

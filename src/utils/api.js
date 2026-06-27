@@ -1,4 +1,13 @@
-const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+const getBackendUrl = () => {
+  let url = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+  url = url.trim();
+  if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
+    url = `https://${url}`;
+  }
+  return url;
+};
+
+const API_BASE = getBackendUrl();
 
 export async function extractInfo(url, platform = null) {
   const res = await fetch(`${API_BASE}/api/extract`, {
