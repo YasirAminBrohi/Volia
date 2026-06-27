@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getCookieSettings, setCookieBrowser, syncCookies, uploadCookies, deleteCookies } from '../utils/api';
+import { getCookieSettings, setCookieBrowser, syncCookies, getStoredCookies, saveStoredCookies, clearStoredCookies, analyzeCookiesLocally } from '../utils/api';
 
 export default function SettingsPanel() {
   const [settings, setSettings] = useState({ 
@@ -8,7 +8,7 @@ export default function SettingsPanel() {
   });
   const [saved, setSaved] = useState(false);
 
-  // Cookie/Browser settings state
+  // Cookie/Browser settings state (for localhost only)
   const [cookieInfo, setCookieInfo] = useState({
     preferred_browser: 'edge',
     cookie_file: null,
@@ -17,11 +17,23 @@ export default function SettingsPanel() {
   const [syncStatus, setSyncStatus] = useState({ success: null, message: '' });
   const [syncing, setSyncing] = useState(false);
 
-  // Custom user cookies upload state
+  // Custom user cookies upload state (client-side localStorage)
   const [customCookies, setCustomCookies] = useState('');
   const [uploadStatus, setUploadStatus] = useState({ success: null, message: '' });
-  const [uploading, setUploading] = useState(false);
+  const [cookieAnalysis, setCookieAnalysis] = useState(null);
+  const [hasSavedCookies, setHasSavedCookies] = useState(false);
 
+  // Load existing cookies from localStorage on mount
+  useEffect(() => {
+    const existing = getStoredCookies();
+    if (existing) {
+      setHasSavedCookies(true);
+      const analysis = analyzeCookiesLocally(existing);
+      setCookieAnalysis(analysis);
+    }
+  }, []);
+
+  // Load server-side cookie settings (for localhost browser sync)
   useEffect(() => {
     async function loadCookieSettings() {
       try {
@@ -76,45 +88,32 @@ export default function SettingsPanel() {
     reader.readAsText(file);
   }
 
-  async function handleUploadCookies() {
+  function handleUploadCookies() {
     if (!customCookies || !customCookies.trim()) {
       setUploadStatus({ success: false, message: 'Please upload a cookies.txt file or paste cookie content.' });
       return;
     }
-    setUploading(true);
-    setUploadStatus({ success: null, message: '' });
-    try {
-      const res = await uploadCookies(customCookies);
-      if (res.success) {
-        setUploadStatus({ success: true, message: res.message || 'Cookies uploaded successfully!' });
-        setCookieInfo(prev => ({ ...prev, cookie_file: res.cookie_file, cookie_analysis: res.cookie_analysis }));
-        setCustomCookies(''); // clear textarea after upload
-      } else {
-        setUploadStatus({ success: false, message: res.message || 'Failed to upload cookies.' });
-      }
-    } catch (err) {
-      setUploadStatus({ success: false, message: err.message || 'Failed to upload cookies.' });
-    } finally {
-      setUploading(false);
+
+    // Analyze cookies client-side
+    const analysis = analyzeCookiesLocally(customCookies);
+    if (analysis.num_cookies === 0) {
+      setUploadStatus({ success: false, message: 'No valid Netscape-format cookies found in the input. Make sure the file uses tab-separated fields.' });
+      return;
     }
+
+    // Save to localStorage — instant, no server call needed
+    saveStoredCookies(customCookies);
+    setCookieAnalysis(analysis);
+    setHasSavedCookies(true);
+    setUploadStatus({ success: true, message: `✅ ${analysis.message}. Cookies saved to your browser and will be sent with every download request.` });
+    setCustomCookies(''); // clear textarea after save
   }
 
-  async function handleDeleteCookies() {
-    setUploading(true);
-    setUploadStatus({ success: null, message: '' });
-    try {
-      const res = await deleteCookies();
-      if (res.success) {
-        setUploadStatus({ success: true, message: res.message || 'Custom cookies cleared!' });
-        setCookieInfo(prev => ({ ...prev, cookie_file: null, cookie_analysis: null }));
-      } else {
-        setUploadStatus({ success: false, message: res.message || 'Failed to clear cookies.' });
-      }
-    } catch (err) {
-      setUploadStatus({ success: false, message: err.message || 'Failed to clear cookies.' });
-    } finally {
-      setUploading(false);
-    }
+  function handleDeleteCookies() {
+    clearStoredCookies();
+    setCookieAnalysis(null);
+    setHasSavedCookies(false);
+    setUploadStatus({ success: true, message: 'Custom cookies cleared from your browser.' });
   }
 
 
@@ -173,13 +172,14 @@ export default function SettingsPanel() {
         </div>
       </div>
 
-      <div className="settings-section" style={{ marginTop: '32px' }}>
-        <h3 className="settings-section-title">Cookie Syncing for Restricted Content</h3>
-        <p className="settings-description" style={{ marginBottom: '12px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          Some age-restricted or private media needs browser cookies from an account where you are logged in.
-        </p>
+      {/* Browser Cookie Sync — localhost only */}
+      {(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
+        <div className="settings-section" style={{ marginTop: '32px' }}>
+          <h3 className="settings-section-title">Browser Cookie Sync (Local Only)</h3>
+          <p className="settings-description" style={{ marginBottom: '12px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            Sync cookies directly from a browser on this machine. Only available when running locally.
+          </p>
 
-        {window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? (
           <div className="form-group" style={{ marginBottom: '16px' }}>
             <label style={{ display: 'block', marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
               Select Browser to Sync From
@@ -241,35 +241,17 @@ export default function SettingsPanel() {
               </div>
             )}
           </div>
-        ) : (
-          <div style={{
-            padding: '16px',
-            borderRadius: 'var(--radius-md)',
-            backgroundColor: 'rgba(99, 102, 241, 0.05)',
-            border: '1px solid rgba(99, 102, 241, 0.15)',
-            color: 'var(--text-secondary)',
-            fontSize: '0.85rem',
-            lineHeight: '1.5'
-          }}>
-            <p style={{ margin: 0, fontWeight: '500', color: 'var(--text-primary)', marginBottom: '6px' }}>
-              ☁️ Cloud Deployment Mode
-            </p>
-            Automatic browser cookie syncing is only supported when running Volia on your local machine.
-            <br /><br />
-            To download age-restricted, private, or rate-limited media in production:
-            <ol style={{ paddingLeft: '20px', marginTop: '8px', marginBottom: 0 }}>
-              <li>Export your cookies in Netscape format (using browser extensions like <i>Get cookies.txt LOCALLY</i>).</li>
-              <li>Save the file as <code>cookies.txt</code>.</li>
-              <li>Place it inside the <code>volia-backend/</code> directory and redeploy to Railway.</li>
-            </ol>
-          </div>
-        )}
-      </div>
+        </div>
+      )}
 
+      {/* Custom Cookies Upload — works everywhere, stored in user's browser */}
       <div className="settings-section" style={{ marginTop: '32px' }}>
         <h3 className="settings-section-title">Upload Custom Cookies.txt</h3>
-        <p className="settings-description" style={{ marginBottom: '12px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          Directly upload or paste a Netscape-format <code>cookies.txt</code> file to authorize your download requests (useful for age-restricted or private content).
+        <p className="settings-description" style={{ marginBottom: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          Upload or paste a Netscape-format <code>cookies.txt</code> file to authorize your download requests (useful for age-restricted or private content).
+        </p>
+        <p className="settings-description" style={{ marginBottom: '12px', fontSize: '0.8rem', color: 'var(--accent-purple)' }}>
+          🔒 Cookies are stored privately in <strong>your browser only</strong> and are never shared with other users.
         </p>
 
         <div className="form-group" style={{ marginBottom: '16px' }}>
@@ -303,7 +285,7 @@ export default function SettingsPanel() {
             </div>
 
             <textarea
-              placeholder="# Netscape HTTP Cookie File&#10;# This file was generated by cookies exporter..."
+              placeholder={"# Netscape HTTP Cookie File\n# This file was generated by cookies exporter..."}
               value={customCookies}
               onChange={e => setCustomCookies(e.target.value)}
               rows="6"
@@ -323,8 +305,7 @@ export default function SettingsPanel() {
             <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
               <button
                 onClick={handleUploadCookies}
-                disabled={uploading}
-                className={`settings-btn ${uploading ? 'loading' : ''}`}
+                className="settings-btn"
                 style={{
                   flex: 1,
                   background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
@@ -333,16 +314,15 @@ export default function SettingsPanel() {
                   padding: '12px',
                   borderRadius: 'var(--radius-md)',
                   fontWeight: '500',
-                  cursor: uploading ? 'not-allowed' : 'pointer'
+                  cursor: 'pointer'
                 }}
               >
-                {uploading ? 'Applying...' : 'Apply Uploaded Cookies'}
+                Save Cookies
               </button>
 
-              {cookieInfo.cookie_file && (cookieInfo.cookie_file.includes('user_cookies') || cookieInfo.cookie_file.includes('cookies.txt')) && (
+              {hasSavedCookies && (
                 <button
                   onClick={handleDeleteCookies}
-                  disabled={uploading}
                   className="settings-btn"
                   style={{
                     background: 'rgba(239, 68, 68, 0.1)',
@@ -351,10 +331,10 @@ export default function SettingsPanel() {
                     padding: '12px 20px',
                     borderRadius: 'var(--radius-md)',
                     fontWeight: '500',
-                    cursor: uploading ? 'not-allowed' : 'pointer'
+                    cursor: 'pointer'
                   }}
                 >
-                  Clear Custom Cookies
+                  Clear Cookies
                 </button>
               )}
             </div>
@@ -372,63 +352,57 @@ export default function SettingsPanel() {
               </div>
             )}
 
-            {cookieInfo.cookie_file && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.85rem' }}>
-                <div style={{ color: 'var(--text-secondary)' }}>
-                  Active cookie source: <code style={{ fontSize: '0.75rem', wordBreak: 'break-all', color: 'var(--accent-purple)' }}>{cookieInfo.cookie_file}</code>
+            {/* Cookie diagnostics panel */}
+            {cookieAnalysis && cookieAnalysis.exists && (
+              <div style={{
+                padding: '12px',
+                borderRadius: 'var(--radius-md)',
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: '1px solid var(--border-glass)',
+                fontSize: '0.8rem',
+                color: 'var(--text-primary)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px',
+                width: '100%',
+                boxSizing: 'border-box'
+              }}>
+                <span style={{ fontWeight: '500', color: 'var(--accent-purple)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  📊 Cookie Diagnostics:
+                </span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '4px' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Total Cookies:</span>
+                  <span>{cookieAnalysis.num_cookies}</span>
                 </div>
-                {cookieInfo.cookie_analysis && cookieInfo.cookie_analysis.exists && (
-                  <div style={{
-                    padding: '12px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    border: '1px solid var(--border-glass)',
-                    fontSize: '0.8rem',
-                    color: 'var(--text-primary)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '6px',
-                    width: '100%',
-                    boxSizing: 'border-box'
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '4px' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>YouTube Cookies:</span>
+                  <span style={{ 
+                    color: cookieAnalysis.youtube_cookies_count > 0 ? '#22c55e' : '#ef4444',
+                    fontWeight: cookieAnalysis.youtube_cookies_count > 0 ? '500' : 'normal'
                   }}>
-                    <span style={{ fontWeight: '500', color: 'var(--accent-purple)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      📊 Cookie Diagnostics:
-                    </span>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '4px' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Total Cookies:</span>
-                      <span>{cookieInfo.cookie_analysis.num_cookies}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '4px' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>YouTube Cookies:</span>
-                      <span style={{ 
-                        color: cookieInfo.cookie_analysis.youtube_cookies_count > 0 ? '#22c55e' : '#ef4444',
-                        fontWeight: cookieInfo.cookie_analysis.youtube_cookies_count > 0 ? '500' : 'normal'
-                      }}>
-                        {cookieInfo.cookie_analysis.youtube_cookies_count}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '4px' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>Google Cookies:</span>
-                      <span style={{ 
-                        color: cookieInfo.cookie_analysis.google_cookies_count > 0 ? '#22c55e' : '#ef4444',
-                        fontWeight: cookieInfo.cookie_analysis.google_cookies_count > 0 ? '500' : 'normal'
-                      }}>
-                        {cookieInfo.cookie_analysis.google_cookies_count}
-                      </span>
-                    </div>
-                    {cookieInfo.cookie_analysis.youtube_cookies_count === 0 && (
-                      <div style={{ 
-                        marginTop: '4px', 
-                        color: '#f59e0b', 
-                        fontSize: '0.75rem',
-                        display: 'flex',
-                        alignItems: 'start',
-                        gap: '6px',
-                        lineHeight: '1.4'
-                      }}>
-                        ⚠️ <strong>Warning:</strong> No YouTube session cookies found. yt-dlp might fail to authenticate. Please make sure you are logged in to YouTube in the browser you exported cookies from.
-                      </div>
-                    )}
+                    {cookieAnalysis.youtube_cookies_count}
+                  </span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '4px' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Google Cookies:</span>
+                  <span style={{ 
+                    color: cookieAnalysis.google_cookies_count > 0 ? '#22c55e' : '#ef4444',
+                    fontWeight: cookieAnalysis.google_cookies_count > 0 ? '500' : 'normal'
+                  }}>
+                    {cookieAnalysis.google_cookies_count}
+                  </span>
+                </div>
+                {cookieAnalysis.youtube_cookies_count === 0 && (
+                  <div style={{ 
+                    marginTop: '4px', 
+                    color: '#f59e0b', 
+                    fontSize: '0.75rem',
+                    display: 'flex',
+                    alignItems: 'start',
+                    gap: '6px',
+                    lineHeight: '1.4'
+                  }}>
+                    ⚠️ <strong>Warning:</strong> No YouTube session cookies found. yt-dlp might fail to authenticate. Please make sure you are logged in to YouTube in the browser you exported cookies from.
                   </div>
                 )}
               </div>
