@@ -24,6 +24,7 @@ export default function App() {
     videoQuality: '1080',
     downloadMode: 'auto',
     audioFormat: 'mp3',
+    selectedFormat: '',
   });
 
   // URL input and background type detection state
@@ -36,6 +37,7 @@ export default function App() {
   useEffect(() => {
     setIsImageLink(false);
     setCachedInfo(null);
+    setQualityOptions(prev => ({ ...prev, selectedFormat: '' }));
   }, [url]);
 
   // Debounced background extraction to detect if URL is for images or video
@@ -151,19 +153,21 @@ export default function App() {
         backendUrl = `https://${backendUrl}`;
       }
       
-      let selectedFormat = null;
-      if (info.platform === 'spotify') {
-        const hasAllSongs = info.formats?.some(f => f.format_id === 'all_songs');
-        selectedFormat = hasAllSongs ? 'all_songs' : 'mp3';
-      } else if (info.is_image) {
-        // If it's an image post, check if there's an all_images format (ZIP)
-        const hasAllImages = info.formats?.some(f => f.format_id === 'all_images');
-        selectedFormat = hasAllImages ? 'all_images' : 'image_0';
-      } else {
-        if (qualityOptions.downloadMode === 'audio') {
-          selectedFormat = format;
+      let selectedFormat = qualityOptions.selectedFormat;
+      if (!selectedFormat) {
+        if (info.platform === 'spotify') {
+          const hasAllSongs = info.formats?.some(f => f.format_id === 'all_songs');
+          selectedFormat = hasAllSongs ? 'all_songs' : 'mp3';
+        } else if (info.is_image) {
+          // If it's an image post, check if there's an all_images format (ZIP)
+          const hasAllImages = info.formats?.some(f => f.format_id === 'all_images');
+          selectedFormat = hasAllImages ? 'all_images' : 'image_0';
         } else {
-          selectedFormat = bestFormat?.format_id || null;
+          if (qualityOptions.downloadMode === 'audio') {
+            selectedFormat = format;
+          } else {
+            selectedFormat = bestFormat?.format_id || null;
+          }
         }
       }
 
@@ -339,6 +343,7 @@ export default function App() {
               <QualitySelector
                 options={qualityOptions}
                 onChange={setQualityOptions}
+                formats={cachedInfo?.formats}
               />
             )}
 

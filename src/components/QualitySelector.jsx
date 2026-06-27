@@ -24,12 +24,28 @@ const AUDIO_FORMATS = [
   { value: 'opus', label: 'OPUS' },
 ];
 
-export default function QualitySelector({ options, onChange }) {
+export default function QualitySelector({ options, onChange, formats }) {
   const [expanded, setExpanded] = useState(false);
 
   function update(key, value) {
-    onChange({ ...options, [key]: value });
+    if (key === 'downloadMode') {
+      onChange({ ...options, downloadMode: value, selectedFormat: '' });
+    } else {
+      onChange({ ...options, [key]: value });
+    }
   }
+
+  // Filter formats based on active mode
+  const filteredFormats = (formats || []).filter(f => {
+    if (options.downloadMode === 'audio') {
+      return f.has_audio && !f.has_video;
+    } else if (options.downloadMode === 'mute') {
+      return f.has_video && !f.has_audio;
+    } else {
+      // both (auto)
+      return f.has_video && f.has_audio;
+    }
+  });
 
   return (
     <div className="quality-section animate-fade">
@@ -114,6 +130,45 @@ export default function QualitySelector({ options, onChange }) {
               </button>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Specific Formats List */}
+      {filteredFormats.length > 0 && (
+        <div style={{ marginTop: '24px' }}>
+          <p className="section-label">Select Specific Resolution / Format (Optional)</p>
+          <select
+            value={options.selectedFormat || ''}
+            onChange={e => update('selectedFormat', e.target.value)}
+            style={{
+              width: '100%',
+              padding: '12px',
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border-glass)',
+              borderRadius: 'var(--radius-md)',
+              color: 'var(--text-primary)',
+              fontFamily: 'var(--font-sans)',
+              fontSize: '0.9rem',
+              outline: 'none',
+              cursor: 'pointer',
+              transition: 'border-color 0.2s',
+              boxSizing: 'border-box'
+            }}
+            onFocus={e => e.target.style.borderColor = 'var(--accent-purple)'}
+            onBlur={e => e.target.style.borderColor = 'var(--border-glass)'}
+          >
+            <option value="">Auto Select (Best Match)</option>
+            {filteredFormats.map(f => (
+              <option key={f.format_id} value={f.format_id}>
+                {f.label || `${f.resolution || 'Unknown'} (${f.extension})`}
+              </option>
+            ))}
+          </select>
+          {options.selectedFormat && (
+            <p style={{ marginTop: '8px', fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span>🎯</span> Custom format overrides standard quality selector.
+            </p>
+          )}
         </div>
       )}
     </div>
