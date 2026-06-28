@@ -166,7 +166,11 @@ export default function App() {
           if (qualityOptions.downloadMode === 'audio') {
             selectedFormat = format;
           } else {
-            selectedFormat = bestFormat?.format_id || null;
+            // Let the backend choose the closest available YouTube format for
+            // normal quality downloads. Exact yt-dlp format IDs can disappear
+            // between extraction and download, so only send one when the user
+            // explicitly selected it from the format dropdown.
+            selectedFormat = null;
           }
         }
       }
