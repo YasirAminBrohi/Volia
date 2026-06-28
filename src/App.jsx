@@ -67,6 +67,7 @@ export default function App() {
     setIsImageLink(false);
     setCachedInfo(null);
     setQualityOptions(prev => ({ ...prev, selectedFormat: '' }));
+    setError(null);
   }, [url]);
 
   useEffect(() => {
@@ -108,6 +109,13 @@ export default function App() {
         setIsImageLink(!!info.is_image);
       } catch (err) {
         console.error("Background extraction failed:", err);
+        // Surface the failure instead of freezing forever on
+        // "Preparing Formats..." with a disabled dropdown. The most common
+        // cause is the backend being down or unreachable.
+        const msg = err.message || 'Could not analyze this link.';
+        setError(msg.includes('Failed to fetch') || /NetworkError|fetch/i.test(msg)
+          ? 'Cannot reach the Volia backend. Please make sure the backend server is running on port 8000.'
+          : msg);
       } finally {
         setIsAnalyzing(false);
       }
