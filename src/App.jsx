@@ -12,6 +12,40 @@ import Toast from './components/Toast';
 import DownloadProgress from './components/DownloadProgress';
 import { extractInfo, startDownload, getDownloadUrl } from './utils/api';
 
+const FORMAT_PREFS_STORAGE_KEY = 'volia_format_preferences';
+
+const DEFAULT_QUALITY_OPTIONS = {
+  videoQuality: 'max',
+  downloadMode: 'auto',
+  audioFormat: 'mp3',
+  selectedFormat: '',
+};
+
+function loadFormatPreferences() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(FORMAT_PREFS_STORAGE_KEY) || '{}');
+    return { ...DEFAULT_QUALITY_OPTIONS, ...saved };
+  } catch (err) {
+    return DEFAULT_QUALITY_OPTIONS;
+  }
+}
+
+function saveFormatPreferences(options) {
+  try {
+    localStorage.setItem(FORMAT_PREFS_STORAGE_KEY, JSON.stringify(options));
+  } catch (err) {
+    // Ignore storage failures; downloads should still work.
+  }
+}
+
+function getFormatsForMode(formats, mode) {
+  return (formats || []).filter(f => {
+    if (mode === 'audio') return f.has_audio && !f.has_video;
+    if (mode === 'mute') return f.has_video && !f.has_audio;
+    return f.has_video && f.has_audio;
+  });
+}
+
 export default function App() {
   const [theme, setTheme] = useState('dark');
   const [currentView, setCurrentView] = useState('home');
@@ -20,12 +54,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [toasts, setToasts] = useState([]);
   const [pickerData, setPickerData] = useState(null);
-  const [qualityOptions, setQualityOptions] = useState({
-    videoQuality: '1080',
-    downloadMode: 'auto',
-    audioFormat: 'mp3',
-    selectedFormat: '',
-  });
+  const [qualityOptions, setQualityOptions] = useState(loadFormatPreferences);
 
   // URL input and background type detection state
   const [url, setUrl] = useState('');
@@ -39,6 +68,25 @@ export default function App() {
     setCachedInfo(null);
     setQualityOptions(prev => ({ ...prev, selectedFormat: '' }));
   }, [url]);
+
+  useEffect(() => {
+    if (!cachedInfo?.formats?.length || qualityOptions.selectedFormat) return;
+
+    const saved = loadFormatPreferences();
+    if (
+      saved.downloadMode !== qualityOptions.downloadMode ||
+      !saved.selectedFormat
+    ) {
+      return;
+    }
+
+    const matchingFormat = getFormatsForMode(cachedInfo.formats, qualityOptions.downloadMode)
+      .some(f => f.format_id === saved.selectedFormat);
+
+    if (matchingFormat) {
+      setQualityOptions(prev => ({ ...prev, selectedFormat: saved.selectedFormat }));
+    }
+  }, [cachedInfo, qualityOptions.downloadMode, qualityOptions.selectedFormat]);
 
   // Debounced background extraction to detect if URL is for images or video
   useEffect(() => {
@@ -84,6 +132,11 @@ export default function App() {
   const removeToast = useCallback((id) => {
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
+
+  function handleQualityOptionsChange(nextOptions) {
+    setQualityOptions(nextOptions);
+    saveFormatPreferences(nextOptions);
+  }
 
   function toggleTheme() {
     const next = theme === 'dark' ? 'light' : 'dark';
@@ -293,6 +346,12 @@ export default function App() {
     setPickerData(null);
   }
 
+  const trimmedUrl = url.trim();
+  const detectedMediaPlatform = trimmedUrl && /youtube\.com|youtu\.be|twitter\.com|x\.com|facebook\.com|fb\.watch|instagram\.com/i.test(trimmedUrl);
+  const showQuality = (detectedMediaPlatform || (cachedInfo && cachedInfo.platform !== 'spotify')) && !isImageLink;
+  const formatDropdownReady = !showQuality || (!!cachedInfo && getFormatsForMode(cachedInfo.formats, qualityOptions.downloadMode).length > 0);
+  const downloadDisabled = showQuality && (isAnalyzing || !formatDropdownReady);
+
   return (
     <div className="app-wrapper">
       <Particles />
@@ -340,21 +399,18 @@ export default function App() {
               loading={loading}
               isAnalyzing={isAnalyzing}
               isImageLink={isImageLink}
+              downloadDisabled={downloadDisabled}
             />
 
             {/* Quality Options - show when video platform detected or cachedInfo ready */}
-            {(() => {
-              const detectedPlatform = url.trim() && /youtube\.com|youtu\.be|twitter\.com|x\.com|facebook\.com|fb\.watch|instagram\.com/i.test(url.trim());
-              const showQuality = (detectedPlatform || (cachedInfo && cachedInfo.platform !== 'spotify')) && !isImageLink;
-              return showQuality ? (
-                <QualitySelector
-                  options={qualityOptions}
-                  onChange={setQualityOptions}
-                  formats={cachedInfo?.formats}
-                  isLoading={isAnalyzing}
-                />
-              ) : null;
-            })()}
+            {showQuality && (
+              <QualitySelector
+                options={qualityOptions}
+                onChange={handleQualityOptionsChange}
+                formats={cachedInfo?.formats}
+                isLoading={isAnalyzing}
+              />
+            )}
 
             {/* Loading State */}
             {loading && progress.status === 'idle' && (

@@ -18,7 +18,7 @@ function detectFromUrl(url) {
   return null;
 }
 
-export default function UrlInput({ url, setUrl, platform, onSubmit, loading, isAnalyzing, isImageLink }) {
+export default function UrlInput({ url, setUrl, platform, onSubmit, loading, isAnalyzing, isImageLink, downloadDisabled = false }) {
   const [detected, setDetected] = useState(null);
   const [dragOver, setDragOver] = useState(false);
 
@@ -29,7 +29,7 @@ export default function UrlInput({ url, setUrl, platform, onSubmit, loading, isA
 
   function handleSubmit(e) {
     e.preventDefault();
-    if (url.trim() && !loading) {
+    if (url.trim() && !loading && !downloadDisabled) {
       onSubmit(url.trim(), detected || platform);
     }
   }
@@ -74,7 +74,7 @@ export default function UrlInput({ url, setUrl, platform, onSubmit, loading, isA
           <button
             type="submit"
             className="url-submit-btn"
-            disabled={!url.trim() || loading}
+            disabled={!url.trim() || loading || downloadDisabled}
             id="fetch-btn"
           >
             {loading ? (
@@ -82,6 +82,8 @@ export default function UrlInput({ url, setUrl, platform, onSubmit, loading, isA
                 <span className="spinner"></span>
                 Working...
               </>
+            ) : downloadDisabled ? (
+              <>Preparing Formats...</>
             ) : isImageLink ? (
               <>Download Images</>
             ) : (
