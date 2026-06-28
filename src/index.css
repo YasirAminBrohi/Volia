@@ -1490,6 +1490,12 @@ body {
   .about-card { padding: 24px; }
   .media-info-body { padding: 16px; }
   .url-submit-btn { padding: 10px 16px; font-size: 0.8rem; }
+  /* On mobile, drop the button below the input row so it is never
+     clipped horizontally. The icon + input stay on the first line. */
+  .url-input-wrapper { flex-wrap: wrap; }
+  .url-input-wrapper .input-icon { flex: 0 0 auto; }
+  .url-input { flex: 1 1 auto; min-width: 0; }
+  .url-submit-btn { flex: 1 0 100%; justify-content: center; margin: 6px; }
   .browser-grid { grid-template-columns: repeat(2, 1fr); }
   .settings-section { padding: 20px; }
   .browser-card-actions { flex-direction: column; }
